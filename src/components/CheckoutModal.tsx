@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Copy, CheckCircle, QrCode } from "lucide-react";
+import { Loader2, Copy, CheckCircle, QrCode, Clock, XCircle, PartyPopper } from "lucide-react";
 import type { RobuxPackage } from "./RobuxCard";
 
 interface CheckoutModalProps {
@@ -30,6 +30,8 @@ interface PaymentResult {
   error?: string;
 }
 
+type PaymentStatus = 'pending' | 'paid' | 'failed';
+
 export function CheckoutModal({ isOpen, onClose, package_ }: CheckoutModalProps) {
   const [step, setStep] = useState<'form' | 'payment'>('form');
   const [loading, setLoading] = useState(false);
@@ -42,7 +44,55 @@ export function CheckoutModal({ isOpen, onClose, package_ }: CheckoutModalProps)
     robloxUser: '',
   });
   const [paymentData, setPaymentData] = useState<PaymentResult | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('pending');
+  const [isPolling, setIsPolling] = useState(false);
   const { toast } = useToast();
+
+  const checkPaymentStatus = useCallback(async () => {
+    if (!paymentData?.transactionId) return;
+
+    try {
+      const { data, error } = await supabase.functions.invoke('check-pix-status', {
+        body: { transactionId: paymentData.transactionId },
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        setPaymentStatus(data.status);
+        
+        if (data.status === 'paid') {
+          setIsPolling(false);
+          toast({
+            title: "Pagamento confirmado!",
+            description: "Seus Robux serão enviados em instantes.",
+          });
+        } else if (data.status === 'failed') {
+          setIsPolling(false);
+          toast({
+            title: "Pagamento expirado",
+            description: "O tempo para pagamento expirou.",
+            variant: "destructive",
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error checking payment status:', error);
+    }
+  }, [paymentData?.transactionId, toast]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+
+    if (step === 'payment' && paymentData?.transactionId && paymentStatus === 'pending') {
+      setIsPolling(true);
+      interval = setInterval(checkPaymentStatus, 5000);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [step, paymentData?.transactionId, paymentStatus, checkPaymentStatus]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -121,6 +171,8 @@ export function CheckoutModal({ isOpen, onClose, package_ }: CheckoutModalProps)
     setStep('form');
     setClientData({ name: '', email: '', phone: '', document: '', robloxUser: '' });
     setPaymentData(null);
+    setPaymentStatus('pending');
+    setIsPolling(false);
     onClose();
   };
 
@@ -254,7 +306,52 @@ export function CheckoutModal({ isOpen, onClose, package_ }: CheckoutModalProps)
               </p>
             </div>
 
-            {paymentData?.pixCode && (
+            {/* Payment Status Indicator */}
+            <div className={`p-4 rounded-lg border ${
+              paymentStatus === 'paid' 
+                ? 'bg-green-500/10 border-green-500/30' 
+                : paymentStatus === 'failed'
+                ? 'bg-destructive/10 border-destructive/30'
+                : 'bg-yellow-500/10 border-yellow-500/30'
+            }`}>
+              <div className="flex items-center justify-center gap-3">
+                {paymentStatus === 'pending' && (
+                  <>
+                    <Clock className="h-5 w-5 text-yellow-500 animate-pulse" />
+                    <div className="text-center">
+                      <p className="font-medium text-yellow-500">Aguardando pagamento</p>
+                      <p className="text-xs text-muted-foreground">
+                        {isPolling ? 'Verificando status...' : 'Escaneie o QR Code para pagar'}
+                      </p>
+                    </div>
+                  </>
+                )}
+                {paymentStatus === 'paid' && (
+                  <>
+                    <PartyPopper className="h-5 w-5 text-green-500" />
+                    <div className="text-center">
+                      <p className="font-medium text-green-500">Pagamento confirmado!</p>
+                      <p className="text-xs text-muted-foreground">
+                        Seus Robux serão enviados em instantes
+                      </p>
+                    </div>
+                  </>
+                )}
+                {paymentStatus === 'failed' && (
+                  <>
+                    <XCircle className="h-5 w-5 text-destructive" />
+                    <div className="text-center">
+                      <p className="font-medium text-destructive">Pagamento expirado</p>
+                      <p className="text-xs text-muted-foreground">
+                        Tente novamente com um novo PIX
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {paymentStatus === 'pending' && paymentData?.pixCode && (
               <div className="relative">
                 <div className="p-3 bg-secondary rounded-lg text-xs break-all font-mono">
                   {paymentData.pixCode.slice(0, 80)}...
@@ -274,16 +371,31 @@ export function CheckoutModal({ isOpen, onClose, package_ }: CheckoutModalProps)
               </div>
             )}
 
-            <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
-              <p className="text-sm text-center">
-                Após o pagamento, os Robux serão enviados para o usuário{' '}
-                <span className="font-bold text-primary">{clientData.robloxUser}</span>{' '}
-                em até 5 minutos.
-              </p>
-            </div>
+            {paymentStatus === 'pending' && (
+              <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+                <p className="text-sm text-center">
+                  Após o pagamento, os Robux serão enviados para o usuário{' '}
+                  <span className="font-bold text-primary">{clientData.robloxUser}</span>{' '}
+                  em até 5 minutos.
+                </p>
+              </div>
+            )}
 
-            <Button onClick={handleClose} variant="outline" className="w-full">
-              Fechar
+            {paymentStatus === 'paid' && (
+              <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/30">
+                <p className="text-sm text-center">
+                  <span className="font-bold text-green-500">{clientData.robloxUser}</span>{' '}
+                  receberá os Robux automaticamente. Obrigado pela compra!
+                </p>
+              </div>
+            )}
+
+            <Button 
+              onClick={paymentStatus === 'failed' ? () => setStep('form') : handleClose} 
+              variant={paymentStatus === 'failed' ? 'default' : 'outline'} 
+              className="w-full"
+            >
+              {paymentStatus === 'failed' ? 'Tentar Novamente' : 'Fechar'}
             </Button>
           </div>
         )}
