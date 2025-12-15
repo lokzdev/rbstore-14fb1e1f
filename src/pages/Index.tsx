@@ -8,9 +8,9 @@ import PromoTimer from "@/components/PromoTimer";
 import SocialProof from "@/components/SocialProof";
 import { UserCheck, CreditCard, Gift, HelpCircle } from "lucide-react";
 const robuxPackages: RobuxPackage[] = [{
-  id: "pkg-400",
+  id: "pkg-500",
   name: "Starter",
-  robux: 400,
+  robux: 500,
   price: 19.90
 }, {
   id: "pkg-800",
