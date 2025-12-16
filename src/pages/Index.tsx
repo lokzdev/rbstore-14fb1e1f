@@ -134,7 +134,7 @@ const Index = () => {
               a: "Enviamos os Robux através do sistema de Game Pass do Roblox. Você receberá instruções por e-mail."
             }, {
               q: "Quanto tempo demora para receber?",
-              a: "Após a confirmação do pagamento, os Robux são enviados em até 24 horas úteis."
+              a: "Após a confirmação do pagamento, os Robux são enviados em até 5 minutos."
             }, {
               q: "O pagamento é seguro?",
               a: "Sim! Utilizamos a plataforma SigiloPay para processar os pagamentos PIX com total segurança."
