@@ -46,7 +46,35 @@ export function CheckoutModal({ isOpen, onClose, package_ }: CheckoutModalProps)
   const [paymentData, setPaymentData] = useState<PaymentResult | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('pending');
   const [isPolling, setIsPolling] = useState(false);
+  const [timeLeft, setTimeLeft] = useState<number>(30 * 60); // 30 minutes in seconds
   const { toast } = useToast();
+
+  // Countdown timer for PIX payment
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+
+    if (step === 'payment' && paymentStatus === 'pending' && timeLeft > 0) {
+      interval = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            setPaymentStatus('failed');
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [step, paymentStatus, timeLeft]);
+
+  const formatTimeLeft = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const checkPaymentStatus = useCallback(async () => {
     if (!paymentData?.transactionId) return;
@@ -144,6 +172,7 @@ export function CheckoutModal({ isOpen, onClose, package_ }: CheckoutModalProps)
 
       if (data.success) {
         setPaymentData(data);
+        setTimeLeft(30 * 60); // Reset timer to 30 minutes
         setStep('payment');
       } else {
         throw new Error(data.error || 'Erro ao criar pagamento');
@@ -175,6 +204,7 @@ export function CheckoutModal({ isOpen, onClose, package_ }: CheckoutModalProps)
     setPaymentData(null);
     setPaymentStatus('pending');
     setIsPolling(false);
+    setTimeLeft(30 * 60);
     onClose();
   };
 
@@ -323,7 +353,7 @@ export function CheckoutModal({ isOpen, onClose, package_ }: CheckoutModalProps)
                     <div className="text-center">
                       <p className="font-medium text-yellow-500">Aguardando pagamento</p>
                       <p className="text-xs text-muted-foreground">
-                        {isPolling ? 'Verificando status...' : 'Escaneie o QR Code para pagar'}
+                        Tempo restante: <span className={`font-mono font-bold ${timeLeft < 300 ? 'text-destructive' : 'text-yellow-500'}`}>{formatTimeLeft(timeLeft)}</span>
                       </p>
                     </div>
                   </>
