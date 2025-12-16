@@ -1,3 +1,6 @@
+import { Link } from "react-router-dom";
+import { Shield } from "lucide-react";
+
 export function Header() {
   return <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-lg">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -18,6 +21,10 @@ export function Header() {
           <a href="#faq" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             FAQ
           </a>
+          <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+            <Shield className="h-3 w-3" />
+            Admin
+          </Link>
         </nav>
 
         <div className="flex items-center gap-2 text-sm">
