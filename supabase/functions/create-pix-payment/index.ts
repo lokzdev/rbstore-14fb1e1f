@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,11 +11,13 @@ interface PaymentRequest {
   productName: string;
   productId: string;
   quantity: number;
+  robuxAmount: number;
   client: {
     name: string;
     email: string;
     phone: string;
     document: string;
+    robloxUser: string;
   };
 }
 
@@ -24,14 +27,18 @@ serve(async (req) => {
   }
 
   try {
-    const { amount, productName, productId, quantity, client }: PaymentRequest = await req.json();
+    const { amount, productName, productId, quantity, robuxAmount, client }: PaymentRequest = await req.json();
 
     const publicKey = Deno.env.get('SIGILO_PAY_PUBLIC_KEY');
     const secretKey = Deno.env.get('SIGILO_PAY_SECRET_KEY');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
     if (!publicKey || !secretKey) {
       throw new Error('SigiloPay credentials not configured');
     }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const identifier = `robux_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
@@ -56,6 +63,7 @@ serve(async (req) => {
         source: 'robux-store',
         productId,
         quantity: quantity.toString(),
+        robloxUser: client.robloxUser,
       },
     };
 
@@ -77,6 +85,23 @@ serve(async (req) => {
 
     if (!response.ok) {
       throw new Error(data.message || 'Failed to create PIX payment');
+    }
+
+    // Save order to database
+    const { error: insertError } = await supabase
+      .from('orders')
+      .insert({
+        transaction_id: data.transactionId,
+        customer_name: client.name,
+        roblox_username: client.robloxUser,
+        email: client.email,
+        robux_amount: robuxAmount,
+        price_brl: amount,
+        status: 'pending',
+      });
+
+    if (insertError) {
+      console.error('Error saving order:', insertError);
     }
 
     const base64Image = data.pix?.base64 || data.pix?.image;

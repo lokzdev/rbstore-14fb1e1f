@@ -129,11 +129,13 @@ export function CheckoutModal({ isOpen, onClose, package_ }: CheckoutModalProps)
           productName: `${package_.robux + (package_.bonus || 0)} Robux`,
           productId: package_.id,
           quantity: 1,
+          robuxAmount: package_.robux + (package_.bonus || 0),
           client: {
             name: clientData.name,
             email: clientData.email,
             phone: clientData.phone.replace(/\D/g, ''),
             document: clientData.document.replace(/\D/g, ''),
+            robloxUser: clientData.robloxUser,
           },
         },
       });
