@@ -4,6 +4,7 @@ import { Hero } from "@/components/Hero";
 import { Footer } from "@/components/Footer";
 import { RobuxCard, type RobuxPackage } from "@/components/RobuxCard";
 import { CheckoutModal } from "@/components/CheckoutModal";
+import { CustomRobuxSelector } from "@/components/CustomRobuxSelector";
 import PromoTimer from "@/components/PromoTimer";
 import SocialProof from "@/components/SocialProof";
 import { UserCheck, CreditCard, Gift, HelpCircle } from "lucide-react";
@@ -69,6 +70,11 @@ const Index = () => {
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
               {robuxPackages.map(pkg => <RobuxCard key={pkg.id} package_={pkg} onBuy={handleBuy} />)}
+            </div>
+
+            {/* Custom Package Selector */}
+            <div className="mt-12 max-w-2xl mx-auto">
+              <CustomRobuxSelector onBuy={handleBuy} />
             </div>
           </div>
         </section>
