@@ -1,0 +1,119 @@
+import { useState, useMemo } from "react";
+import { Slider } from "@/components/ui/slider";
+import { Button } from "@/components/ui/button";
+import { Sparkles, Zap } from "lucide-react";
+import type { RobuxPackage } from "./RobuxCard";
+
+interface CustomRobuxSelectorProps {
+  onBuy: (pkg: RobuxPackage) => void;
+}
+
+const MIN_ROBUX = 500;
+const MAX_ROBUX = 50000;
+const STEP = 100;
+
+// Price per Robux (based on existing packages average)
+const PRICE_PER_ROBUX = 0.028;
+
+export const CustomRobuxSelector = ({ onBuy }: CustomRobuxSelectorProps) => {
+  const [robuxAmount, setRobuxAmount] = useState(MIN_ROBUX);
+
+  const calculatedPrice = useMemo(() => {
+    // Discount for larger amounts
+    let discount = 0;
+    if (robuxAmount >= 10000) discount = 0.10;
+    else if (robuxAmount >= 5000) discount = 0.05;
+    else if (robuxAmount >= 2000) discount = 0.02;
+
+    const basePrice = robuxAmount * PRICE_PER_ROBUX;
+    return (basePrice * (1 - discount)).toFixed(2);
+  }, [robuxAmount]);
+
+  const bonus = useMemo(() => {
+    if (robuxAmount >= 10000) return Math.floor(robuxAmount * 0.1);
+    if (robuxAmount >= 5000) return Math.floor(robuxAmount * 0.05);
+    if (robuxAmount >= 2000) return Math.floor(robuxAmount * 0.02);
+    return 0;
+  }, [robuxAmount]);
+
+  const handleBuy = () => {
+    const customPackage: RobuxPackage = {
+      id: `custom-${robuxAmount}`,
+      name: "Personalizado",
+      robux: robuxAmount,
+      bonus: bonus > 0 ? bonus : undefined,
+      price: parseFloat(calculatedPrice),
+    };
+    onBuy(customPackage);
+  };
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 via-background to-secondary/20 p-6 md:p-8">
+      {/* Glow effect */}
+      <div className="absolute -top-20 -right-20 w-40 h-40 bg-primary/20 rounded-full blur-3xl" />
+      <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-primary/10 rounded-full blur-3xl" />
+
+      <div className="relative z-10">
+        <div className="flex items-center gap-2 mb-6">
+          <Sparkles className="w-6 h-6 text-primary" />
+          <h3 className="font-display text-2xl font-bold">Pacote Personalizado</h3>
+        </div>
+
+        <div className="space-y-6">
+          {/* Robux Amount Display */}
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-2">
+              <img 
+                src="/robux.png" 
+                alt="Robux" 
+                className="w-10 h-10"
+              />
+              <span className="font-display text-5xl font-bold text-primary">
+                {robuxAmount.toLocaleString("pt-BR")}
+              </span>
+            </div>
+            {bonus > 0 && (
+              <div className="mt-2 inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary/20 text-primary text-sm font-semibold">
+                <Zap className="w-4 h-4" />
+                +{bonus.toLocaleString("pt-BR")} bônus
+              </div>
+            )}
+          </div>
+
+          {/* Slider */}
+          <div className="px-2">
+            <Slider
+              value={[robuxAmount]}
+              onValueChange={(value) => setRobuxAmount(value[0])}
+              min={MIN_ROBUX}
+              max={MAX_ROBUX}
+              step={STEP}
+              className="w-full"
+            />
+            <div className="flex justify-between mt-2 text-xs text-muted-foreground">
+              <span>{MIN_ROBUX.toLocaleString("pt-BR")}</span>
+              <span>{MAX_ROBUX.toLocaleString("pt-BR")}</span>
+            </div>
+          </div>
+
+          {/* Price and Buy Button */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-border/50">
+            <div className="text-center sm:text-left">
+              <p className="text-sm text-muted-foreground">Valor total</p>
+              <p className="font-display text-3xl font-bold text-primary">
+                R$ {parseFloat(calculatedPrice).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+            <Button
+              onClick={handleBuy}
+              size="lg"
+              className="w-full sm:w-auto hero-gradient text-primary-foreground font-bold px-8"
+            >
+              Comprar Agora
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
