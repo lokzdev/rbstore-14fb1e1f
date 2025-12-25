@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Sparkles, Zap } from "lucide-react";
 import type { RobuxPackage } from "./RobuxCard";
 
@@ -17,6 +18,32 @@ const PRICE_PER_ROBUX = 0.028;
 
 export const CustomRobuxSelector = ({ onBuy }: CustomRobuxSelectorProps) => {
   const [robuxAmount, setRobuxAmount] = useState(MIN_ROBUX);
+  const [inputValue, setInputValue] = useState(MIN_ROBUX.toString());
+
+  const updateRobuxAmount = (value: number) => {
+    // Round to nearest step and clamp between min and max
+    const rounded = Math.round(value / STEP) * STEP;
+    const clamped = Math.max(MIN_ROBUX, Math.min(MAX_ROBUX, rounded));
+    setRobuxAmount(clamped);
+    setInputValue(clamped.toString());
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value.replace(/\D/g, "");
+    setInputValue(rawValue);
+  };
+
+  const handleInputBlur = () => {
+    const numValue = parseInt(inputValue) || MIN_ROBUX;
+    updateRobuxAmount(numValue);
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      const numValue = parseInt(inputValue) || MIN_ROBUX;
+      updateRobuxAmount(numValue);
+    }
+  };
 
   const calculatedPrice = useMemo(() => {
     // Discount for larger amounts
@@ -60,20 +87,26 @@ export const CustomRobuxSelector = ({ onBuy }: CustomRobuxSelectorProps) => {
         </div>
 
         <div className="space-y-6">
-          {/* Robux Amount Display */}
+          {/* Robux Amount Display with Input */}
           <div className="text-center">
-            <div className="flex items-center justify-center gap-2">
+            <div className="flex items-center justify-center gap-3">
               <img 
                 src="/robux.png" 
                 alt="Robux" 
                 className="w-10 h-10"
               />
-              <span className="font-display text-5xl font-bold text-primary">
-                {robuxAmount.toLocaleString("pt-BR")}
-              </span>
+              <Input
+                type="text"
+                inputMode="numeric"
+                value={inputValue}
+                onChange={handleInputChange}
+                onBlur={handleInputBlur}
+                onKeyDown={handleInputKeyDown}
+                className="w-40 text-center font-display text-4xl font-bold text-primary bg-background/50 border-primary/30 focus:border-primary h-14"
+              />
             </div>
             {bonus > 0 && (
-              <div className="mt-2 inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary/20 text-primary text-sm font-semibold">
+              <div className="mt-3 inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary/20 text-primary text-sm font-semibold">
                 <Zap className="w-4 h-4" />
                 +{bonus.toLocaleString("pt-BR")} bônus
               </div>
@@ -84,7 +117,10 @@ export const CustomRobuxSelector = ({ onBuy }: CustomRobuxSelectorProps) => {
           <div className="px-2">
             <Slider
               value={[robuxAmount]}
-              onValueChange={(value) => setRobuxAmount(value[0])}
+              onValueChange={(value) => {
+                setRobuxAmount(value[0]);
+                setInputValue(value[0].toString());
+              }}
               min={MIN_ROBUX}
               max={MAX_ROBUX}
               step={STEP}
