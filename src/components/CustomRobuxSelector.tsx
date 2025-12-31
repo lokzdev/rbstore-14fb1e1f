@@ -13,15 +13,59 @@ const MIN_ROBUX = 500;
 const MAX_ROBUX = 50000;
 const STEP = 100;
 
-// Price per Robux (based on existing packages average)
-const PRICE_PER_ROBUX = 0.028;
+// Price tiers based on existing packages
+const PRICE_TIERS = [
+  { robux: 500, price: 19.90, bonus: 0 },
+  { robux: 800, price: 24.90, bonus: 0 },
+  { robux: 1700, price: 49.90, bonus: 100 },
+  { robux: 4500, price: 129.90, bonus: 300 },
+  { robux: 10000, price: 279.90, bonus: 1000 },
+];
+
+// Interpolate price between tiers
+const interpolatePrice = (robux: number): number => {
+  // Find the surrounding tiers
+  for (let i = 0; i < PRICE_TIERS.length - 1; i++) {
+    const lower = PRICE_TIERS[i];
+    const upper = PRICE_TIERS[i + 1];
+    
+    if (robux >= lower.robux && robux <= upper.robux) {
+      const ratio = (robux - lower.robux) / (upper.robux - lower.robux);
+      return lower.price + ratio * (upper.price - lower.price);
+    }
+  }
+  
+  // Extrapolate for values above the highest tier
+  const lastTier = PRICE_TIERS[PRICE_TIERS.length - 1];
+  const secondLastTier = PRICE_TIERS[PRICE_TIERS.length - 2];
+  const pricePerRobux = (lastTier.price - secondLastTier.price) / (lastTier.robux - secondLastTier.robux);
+  return lastTier.price + (robux - lastTier.robux) * pricePerRobux;
+};
+
+// Interpolate bonus between tiers
+const interpolateBonus = (robux: number): number => {
+  // Find the surrounding tiers
+  for (let i = 0; i < PRICE_TIERS.length - 1; i++) {
+    const lower = PRICE_TIERS[i];
+    const upper = PRICE_TIERS[i + 1];
+    
+    if (robux >= lower.robux && robux <= upper.robux) {
+      const ratio = (robux - lower.robux) / (upper.robux - lower.robux);
+      return Math.floor(lower.bonus + ratio * (upper.bonus - lower.bonus));
+    }
+  }
+  
+  // Extrapolate for values above the highest tier
+  const lastTier = PRICE_TIERS[PRICE_TIERS.length - 1];
+  const bonusRatio = lastTier.bonus / lastTier.robux;
+  return Math.floor(robux * bonusRatio);
+};
 
 export const CustomRobuxSelector = ({ onBuy }: CustomRobuxSelectorProps) => {
   const [robuxAmount, setRobuxAmount] = useState(MIN_ROBUX);
   const [inputValue, setInputValue] = useState(MIN_ROBUX.toString());
 
   const updateRobuxAmount = (value: number) => {
-    // Round to nearest step and clamp between min and max
     const rounded = Math.round(value / STEP) * STEP;
     const clamped = Math.max(MIN_ROBUX, Math.min(MAX_ROBUX, rounded));
     setRobuxAmount(clamped);
@@ -46,21 +90,11 @@ export const CustomRobuxSelector = ({ onBuy }: CustomRobuxSelectorProps) => {
   };
 
   const calculatedPrice = useMemo(() => {
-    // Discount for larger amounts
-    let discount = 0;
-    if (robuxAmount >= 10000) discount = 0.10;
-    else if (robuxAmount >= 5000) discount = 0.05;
-    else if (robuxAmount >= 2000) discount = 0.02;
-
-    const basePrice = robuxAmount * PRICE_PER_ROBUX;
-    return (basePrice * (1 - discount)).toFixed(2);
+    return interpolatePrice(robuxAmount).toFixed(2);
   }, [robuxAmount]);
 
   const bonus = useMemo(() => {
-    if (robuxAmount >= 10000) return Math.floor(robuxAmount * 0.1);
-    if (robuxAmount >= 5000) return Math.floor(robuxAmount * 0.05);
-    if (robuxAmount >= 2000) return Math.floor(robuxAmount * 0.02);
-    return 0;
+    return interpolateBonus(robuxAmount);
   }, [robuxAmount]);
 
   const handleBuy = () => {
